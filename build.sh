@@ -24,9 +24,20 @@ echo "[2/4] Installing dependencies from requirements.txt..."
 echo
 echo "[3/4] Generating .icns icon from assets/Final_Icon.png..."
 
-SRC="assets/Final_Icon.png"
 ICONSET_DIR="build/See3D.iconset"
 mkdir -p "$ICONSET_DIR"
+
+# Crop tight to the squircle content before scaling — Final_Icon.png has
+# ~230px transparent padding per side (content fills only ~62% of canvas).
+# Without cropping, the Dock/Finder icon appears small and blurry.
+SRC="$ICONSET_DIR/icon_cropped.png"
+"$PY" -c "
+from PIL import Image
+img = Image.open('assets/Final_Icon.png').convert('RGBA')
+bbox = img.getbbox()
+pad = int((bbox[2] - bbox[0]) * 0.04)
+img.crop((max(0,bbox[0]-pad), max(0,bbox[1]-pad), min(img.width,bbox[2]+pad), min(img.height,bbox[3]+pad))).save('$SRC')
+"
 
 # Final_Icon.png is the agreed app icon — used at every size so the Dock,
 # Finder, Spotlight and Mission Control all show the same designed icon.
