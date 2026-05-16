@@ -53,18 +53,35 @@ _BTN_SEC = dict(fg_color=C_CARD, border_color=C_ACCENT2, border_width=2,
                 text_color=C_ACCENT2, hover_color="#EEF2FA")
 
 # Font fallback chain: Windows 11 -> Windows 10 -> macOS -> generic
-_DISPLAY_FAMILIES = "Segoe UI Variable Display Segoe UI SF Pro Display Helvetica"
-_TEXT_FAMILIES    = "Segoe UI Variable Text Segoe UI SF Pro Text Helvetica"
-_MONO_FAMILIES    = "Consolas Menlo Monaco monospace"
+_DISPLAY_FAMILIES = ("Segoe UI Variable Display", "Segoe UI", "SF Pro Display", "Helvetica Neue", "Helvetica")
+_TEXT_FAMILIES    = ("Segoe UI Variable Text",    "Segoe UI", "SF Pro Text",    "Helvetica Neue", "Helvetica")
+_MONO_FAMILIES    = ("Consolas", "Menlo", "Monaco", "Courier New", "Courier")
+
+_FAMILY_CACHE: dict[tuple, str] = {}
+
+
+def _pick_family(candidates: tuple[str, ...]) -> str:
+    """First family from `candidates` that Tk reports as installed; falls back to the last entry."""
+    cached = _FAMILY_CACHE.get(candidates)
+    if cached is not None:
+        return cached
+    try:
+        from tkinter import font as tkfont
+        available = set(tkfont.families())
+    except Exception:
+        available = set()
+    chosen = next((c for c in candidates if c in available), candidates[-1])
+    _FAMILY_CACHE[candidates] = chosen
+    return chosen
 
 
 def _f(size: int, weight: str = "normal", mono: bool = False) -> ctk.CTkFont:
     if mono:
-        family = "Consolas"
+        family = _pick_family(_MONO_FAMILIES)
     elif size >= 14:
-        family = "Segoe UI Variable Display"
+        family = _pick_family(_DISPLAY_FAMILIES)
     else:
-        family = "Segoe UI Variable Text"
+        family = _pick_family(_TEXT_FAMILIES)
     return ctk.CTkFont(family=family, size=size, weight=weight)
 
 
@@ -108,17 +125,24 @@ def _open_path(p: Path) -> None:
 
 
 def _set_app_icon(window: tk.Misc) -> None:
-    """Cross-platform icon setter - .ico on Windows, PhotoImage elsewhere."""
+    """Cross-platform window icon setter.
+
+    Uses the platform-native bundled icon when available (.ico on Windows,
+    .icns on macOS — both derived from assets/Final_Icon.png at build time)
+    and falls back to assets/Final_Icon.png loaded as a Tk PhotoImage.
+    """
     try:
         if sys.platform.startswith("win"):
             ico = resource_path("assets/app_icon.ico")
             if ico.exists():
                 window.iconbitmap(str(ico))
                 return
-        # Prefer the new light-bg icon; fall back to the dark legacy one if missing
-        png = resource_path("assets/favicon-light-512.png")
+        # Non-Windows runtime (and Win fallback): load Final_Icon.png directly.
+        # Earlier versions fell back to favicon-light/dark-512.png; those are
+        # the auto-generated wordmark and don't match the polished app icon.
+        png = resource_path("assets/Final_Icon.png")
         if not png.exists():
-            png = resource_path("assets/favicon-dark-512.png")
+            png = resource_path("assets/favicon-light-512.png")
         if png.exists():
             img = tk.PhotoImage(file=str(png))
             window.iconphoto(True, img)
@@ -149,7 +173,7 @@ class _Tip:
         tw.wm_geometry(f"+{x}+{y}")
         tw.attributes("-topmost", True)
         tk.Label(tw, text=self._text, background=C_NAVY, foreground="white",
-                 font=("Segoe UI Variable Text", 10), relief="flat",
+                 font=(_pick_family(_TEXT_FAMILIES), 10), relief="flat",
                  padx=10, pady=7, wraplength=320, justify="left").pack()
 
     def _hide(self, _=None):
@@ -923,11 +947,15 @@ class See3DConverterApp(ctk.CTk):
             self._dropzone._set_images(str(root / "images"))
         if not self._out_var.get():
             self._set_output(str(root / "Colmap"))
-        # Cross-fill the Validate tab so the user doesn't re-enter paths
+        # Cross-fill the Validate tab so the user doesn't re-enter paths.
+        # Only point at Colmap/ when it actually exists, otherwise the slot
+        # immediately reads "Missing: cameras.txt, images.txt" before the
+        # conversion has even been run.
         if not self._val_drop.var_e57.get():
             self._val_drop._set_e57(path)
-        if not self._val_drop.var_images.get():
-            self._val_drop._set_images(str(root / "Colmap"))
+        colmap_dir = root / "Colmap"
+        if colmap_dir.is_dir() and not self._val_drop.var_images.get():
+            self._val_drop._set_images(str(colmap_dir))
         self._refresh_summary()
 
     def _on_images_change(self, path: str):
@@ -1051,13 +1079,17 @@ class See3DConverterApp(ctk.CTk):
         except Exception as exc:
             return f"Pre-flight check failed:\n{exc}"
         try:
-            parent = outp.parent if not outp.exists() else outp
-            parent.mkdir(parents=True, exist_ok=True)
             import shutil
-            free_gb = shutil.disk_usage(parent).free / 1e9
+            # Walk up to the nearest existing ancestor for the disk-space probe.
+            # Don't create the output dir here — pre-flight may still bail
+            # out below and we'd leave a stray empty folder behind.
+            check_at = outp
+            while not check_at.exists() and check_at != check_at.parent:
+                check_at = check_at.parent
+            free_gb = shutil.disk_usage(check_at).free / 1e9
             est_gb = n_img * 0.05 + 1.0
             if free_gb < est_gb:
-                return (f"Low disk space at {parent}:\n"
+                return (f"Low disk space at {check_at}:\n"
                         f"  {free_gb:.1f} GB free, need ~{est_gb:.1f} GB.")
         except Exception:
             pass
@@ -1281,7 +1313,7 @@ class See3DConverterApp(ctk.CTk):
             self._score_status.configure(text="GOOD", text_color=C_SUCCESS)
             self._score_sub.configure(text="Healthy alignment  (target 5-9)",
                                       text_color=C_SUCCESS)
-        elif score <= 11.5:
+        elif score < 12:
             self._score_num.configure(text=f"{score:.1f}", text_color=C_WARN)
             self._score_status.configure(text="MARGINAL", text_color=C_WARN)
             self._score_sub.configure(

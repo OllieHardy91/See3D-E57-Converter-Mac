@@ -46,28 +46,28 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+          if [ -f requirements-dev.txt ]; then
+            python -m pip install -r requirements-dev.txt
+          else
+            python -m pip install -r requirements.txt
+          fi
 
-      - name: Generate .icns icon
+      - name: Generate .icns icon from Final_Icon.png
         run: |
-          # Regenerate the source PNGs so CI never ships a stale icon.
-          python scripts/generate_icon_source.py
-          WORDMARK="assets/app_icon_source.png"
-          MONOGRAM="assets/app_icon_mono_source.png"
+          SRC="assets/Final_Icon.png"
           ICONSET="build/See3D.iconset"
           mkdir -p "$ICONSET"
-          # Monogram '3D' for small sizes where the wordmark is illegible,
-          # full wordmark at 128px and up.
-          sips -z 16   16   "$MONOGRAM" --out "$ICONSET/icon_16x16.png"
-          sips -z 32   32   "$MONOGRAM" --out "$ICONSET/icon_16x16@2x.png"
-          sips -z 32   32   "$MONOGRAM" --out "$ICONSET/icon_32x32.png"
-          sips -z 64   64   "$MONOGRAM" --out "$ICONSET/icon_32x32@2x.png"
-          sips -z 128  128  "$WORDMARK" --out "$ICONSET/icon_128x128.png"
-          sips -z 256  256  "$WORDMARK" --out "$ICONSET/icon_128x128@2x.png"
-          sips -z 256  256  "$WORDMARK" --out "$ICONSET/icon_256x256.png"
-          sips -z 512  512  "$WORDMARK" --out "$ICONSET/icon_256x256@2x.png"
-          sips -z 512  512  "$WORDMARK" --out "$ICONSET/icon_512x512.png"
-          sips -z 1024 1024 "$WORDMARK" --out "$ICONSET/icon_512x512@2x.png"
+          # Final_Icon.png is the agreed app icon — used at every size.
+          sips -z 16   16   "$SRC" --out "$ICONSET/icon_16x16.png"
+          sips -z 32   32   "$SRC" --out "$ICONSET/icon_16x16@2x.png"
+          sips -z 32   32   "$SRC" --out "$ICONSET/icon_32x32.png"
+          sips -z 64   64   "$SRC" --out "$ICONSET/icon_32x32@2x.png"
+          sips -z 128  128  "$SRC" --out "$ICONSET/icon_128x128.png"
+          sips -z 256  256  "$SRC" --out "$ICONSET/icon_128x128@2x.png"
+          sips -z 256  256  "$SRC" --out "$ICONSET/icon_256x256.png"
+          sips -z 512  512  "$SRC" --out "$ICONSET/icon_256x256@2x.png"
+          sips -z 512  512  "$SRC" --out "$ICONSET/icon_512x512.png"
+          sips -z 1024 1024 "$SRC" --out "$ICONSET/icon_512x512@2x.png"
           iconutil -c icns "$ICONSET" -o assets/app_icon.icns
 
       - name: Build .app with PyInstaller
