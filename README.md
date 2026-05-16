@@ -1,5 +1,10 @@
 # See3D E57 Converter — macOS
 
+[![Build macOS .app](https://github.com/OllieHardy91/See3D-E57-Converter-Mac/actions/workflows/release.yml/badge.svg)](https://github.com/OllieHardy91/See3D-E57-Converter-Mac/actions/workflows/release.yml)
+[![Latest release](https://img.shields.io/github/v/release/OllieHardy91/See3D-E57-Converter-Mac?include_prereleases&label=release)](https://github.com/OllieHardy91/See3D-E57-Converter-Mac/releases)
+[![Downloads](https://img.shields.io/github/downloads/OllieHardy91/See3D-E57-Converter-Mac/total)](https://github.com/OllieHardy91/See3D-E57-Converter-Mac/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A native macOS desktop app that turns a **Realsee Galois M2** capture
 (LiDAR `.e57` + 360° equirectangular panoramas) into a COLMAP dataset
 ready for **Gaussian Splatting** training in
@@ -66,9 +71,8 @@ of three representative scans, so you can sanity-check alignment visually.
 ## System requirements
 
 - **macOS:** 12 Monterey or newer.
-- **Architecture:** Apple Silicon (arm64) — M1/M2/M3/M4. Intel Macs aren't
-  in the CI matrix yet; if you have an Intel Mac and want to help, please
-  open an issue.
+- **Architecture:** Apple Silicon (arm64) **and** Intel (x86_64). The CI
+  builds both — pick the right `.zip` from the Releases page.
 - **RAM:** 8 GB minimum, 16 GB recommended (cubemap workers run in parallel).
 - **Disk:** 5–50 GB free in the output folder, depending on scan count.
 
@@ -134,8 +138,8 @@ re-projection-error testing. Don't change them without re-validating.
   On Apple Silicon this is shipped as part of the `tkinterdnd2` wheel — if
   DnD isn't working, file an issue with `pip show tkinterdnd2` output.
 - **Gatekeeper warning** on first launch (see "First launch" above).
-- **Single-arch** for now — arm64 only. Intel build can be added once
-  there's a confirmed user request.
+- **Unsigned binary** — uses ad-hoc codesigning only. A full Developer-ID
+  notarised build will come once the app stabilises.
 
 ## Credits
 

@@ -81,13 +81,39 @@ echo "[4/4] Building .app with PyInstaller..."
   --exclude-module notebook \
   app.py
 
+APP="dist/See3D E57 Converter.app"
+PLIST="$APP/Contents/Info.plist"
+
+echo
+echo "[5/5] Polishing Info.plist..."
+VERSION=$("$PY" -c "import re; m=re.search(r'__version__\s*=\s*[\"\\']([^\"\\']+)', open('converter_core.py').read()); print(m.group(1) if m else '0.0.0')")
+echo "  -> version = $VERSION"
+
+set_or_add() {
+  local key="$1" type="$2" value="$3"
+  /usr/libexec/PlistBuddy -c "Set :$key $value" "$PLIST" 2>/dev/null \
+    || /usr/libexec/PlistBuddy -c "Add :$key $type $value" "$PLIST"
+}
+set_or_add LSMinimumSystemVersion        string "12.0"
+set_or_add NSHighResolutionCapable       bool   true
+set_or_add LSApplicationCategoryType     string "public.app-category.graphics-design"
+set_or_add CFBundleShortVersionString    string "$VERSION"
+set_or_add CFBundleVersion               string "$VERSION"
+set_or_add CFBundleDisplayName           string "See3D E57 Converter"
+set_or_add NSHumanReadableCopyright      string "Copyright (c) 2026 Shady Gmira / Ollie Hardy-Harris. MIT licensed."
+plutil -lint "$PLIST" >/dev/null
+
+echo
+echo "Ad-hoc codesigning so the bundle launches without 'killed' on first run..."
+codesign --force --deep --sign - "$APP" 2>/dev/null || true
+
 echo
 echo "-- BUILD COMPLETE --"
-echo "App bundle: dist/See3D E57 Converter.app"
+echo "App bundle: $APP"
 echo
 echo "To distribute, zip the bundle:"
-echo "  cd dist && zip -r 'See3D-E57-Converter-macOS.zip' 'See3D E57 Converter.app'"
+echo "  cd dist && zip -r 'See3D-E57-Converter-macOS-v$VERSION.zip' 'See3D E57 Converter.app'"
 echo
-echo "First-launch note: the bundle is unsigned, so users need to right-click ->"
-echo "Open the first time, or remove the quarantine attribute with:"
+echo "First-launch note: the bundle is unsigned (ad-hoc only). Users need to"
+echo "right-click -> Open the first time, or strip the quarantine attribute:"
 echo "  xattr -dr com.apple.quarantine 'See3D E57 Converter.app'"

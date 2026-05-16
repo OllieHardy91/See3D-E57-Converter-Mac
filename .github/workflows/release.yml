@@ -14,17 +14,32 @@ permissions:
   contents: write
 
 jobs:
-  # arm64 build (Apple Silicon) - macos-14+
-  build-arm64:
-    runs-on: macos-14
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: macos-14, arch: arm64,  python: "3.11" }
+          - { runner: macos-13, arch: x86_64, python: "3.11" }
+
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python }}
           cache: pip
+
+      - name: Read app version
+        id: ver
+        shell: bash
+        run: |
+          VERSION=$(python -c "import re,sys; m=re.search(r'__version__\s*=\s*[\"\']([^\"\']+)', open('converter_core.py').read()); print(m.group(1) if m else '0.0.0')")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "App version: $VERSION"
 
       - name: Install dependencies
         run: |
@@ -48,12 +63,13 @@ jobs:
           sips -z 1024 1024 "$ICON_PNG" --out "$ICONSET/icon_512x512@2x.png"
           iconutil -c icns "$ICONSET" -o assets/app_icon.icns
 
-      - name: Build .app
+      - name: Build .app with PyInstaller
         run: |
           python -m PyInstaller --windowed --noconfirm \
             --name "See3D E57 Converter" \
             --icon assets/app_icon.icns \
             --osx-bundle-identifier uk.see3d.e57converter \
+            --target-arch ${{ matrix.arch }} \
             --add-data "assets:assets" \
             --hidden-import numpy \
             --hidden-import scipy.spatial.transform._rotation_groups \
@@ -76,21 +92,70 @@ jobs:
             --exclude-module pandas \
             app.py
 
+      - name: Polish Info.plist
+        run: |
+          APP="dist/See3D E57 Converter.app"
+          PLIST="$APP/Contents/Info.plist"
+          set_or_add() {
+            local key="$1" type="$2" value="$3"
+            /usr/libexec/PlistBuddy -c "Set :$key $value" "$PLIST" 2>/dev/null \
+              || /usr/libexec/PlistBuddy -c "Add :$key $type $value" "$PLIST"
+          }
+          set_or_add LSMinimumSystemVersion        string  "12.0"
+          set_or_add NSHighResolutionCapable       bool    true
+          set_or_add LSApplicationCategoryType     string  "public.app-category.graphics-design"
+          set_or_add CFBundleShortVersionString    string  "${{ steps.ver.outputs.version }}"
+          set_or_add CFBundleVersion               string  "${{ steps.ver.outputs.version }}"
+          set_or_add CFBundleDisplayName           string  "See3D E57 Converter"
+          set_or_add NSHumanReadableCopyright      string  "Copyright (c) 2026 Shady Gmira / Ollie Hardy-Harris. MIT licensed."
+          plutil -lint "$PLIST"
+          echo "----- Final Info.plist -----"
+          plutil -convert xml1 -o - "$PLIST" | head -60
+
+      - name: Ad-hoc codesign
+        run: |
+          # Without at least an ad-hoc signature, Gatekeeper on the runner
+          # blocks `open` and the smoke-test would fail with "killed".
+          codesign --force --deep --sign - "dist/See3D E57 Converter.app"
+          codesign --verify --deep --strict "dist/See3D E57 Converter.app"
+
+      - name: Smoke-test the .app
+        run: |
+          APP="dist/See3D E57 Converter.app"
+          BIN="$APP/Contents/MacOS/See3D E57 Converter"
+          echo "Launching $BIN in the background..."
+          "$BIN" &
+          APP_PID=$!
+          sleep 10
+          if kill -0 "$APP_PID" 2>/dev/null; then
+            echo "OK: process $APP_PID still running after 10s - GUI loop reached"
+            kill "$APP_PID" || true
+            wait "$APP_PID" 2>/dev/null || true
+            exit 0
+          else
+            echo "ERROR: app exited within 10 seconds"
+            wait "$APP_PID"
+            echo "Exit code: $?"
+            exit 1
+          fi
+
       - name: Zip the .app bundle
         working-directory: dist
         run: |
-          zip -r "See3D-E57-Converter-macOS-arm64.zip" "See3D E57 Converter.app"
+          ZIP_NAME="See3D-E57-Converter-macOS-${{ matrix.arch }}-v${{ steps.ver.outputs.version }}.zip"
+          zip -r "$ZIP_NAME" "See3D E57 Converter.app"
+          echo "ZIP_NAME=$ZIP_NAME" >> "$GITHUB_ENV"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: See3D-E57-Converter-macOS-arm64
-          path: dist/See3D-E57-Converter-macOS-arm64.zip
+          name: See3D-E57-Converter-macOS-${{ matrix.arch }}
+          path: dist/${{ env.ZIP_NAME }}
 
       - name: Attach to release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/See3D-E57-Converter-macOS-arm64.zip
+          files: dist/${{ env.ZIP_NAME }}
           fail_on_unmatched_files: true
           generate_release_notes: true
