@@ -167,7 +167,7 @@ class _Tip:
         tw.wm_geometry(f"+{x}+{y}")
         tw.attributes("-topmost", True)
         tk.Label(tw, text=self._text, background=C_NAVY, foreground="white",
-                 font=("Segoe UI Variable Text", 10), relief="flat",
+                 font=(_TEXT_FONT, 10), relief="flat",
                  padx=10, pady=7, wraplength=320, justify="left").pack()
 
     def _hide(self, _=None):

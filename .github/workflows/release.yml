@@ -19,11 +19,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { runner: macos-14, arch: arm64,  python: "3.11" }
-          - { runner: macos-13, arch: x86_64, python: "3.11" }
+          - { runner: macos-14, arch: arm64,  python: "3.11", required: true  }
+          - { runner: macos-13, arch: x86_64, python: "3.11", required: false }
 
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
+    # macos-13 Intel runners are scarce - allow the x86_64 leg to fail without
+    # taking the whole workflow down. arm64 is the required deliverable.
+    continue-on-error: ${{ matrix.required == false }}
+    timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v4
