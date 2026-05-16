@@ -1,0 +1,10 @@
+# Force LF on POSIX scripts so a Windows clone doesn't break macOS execution
+*.sh   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+
+# Python: LF is the convention even on Windows
+*.py   text eol=lf
+
+# Auto-handle the rest
+* text=auto

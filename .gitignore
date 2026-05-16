@@ -1,0 +1,30 @@
+# Build outputs
+build/
+dist/
+*.spec
+__pycache__/
+*.pyc
+
+# Generated artefacts (rebuilt by build.sh / CI)
+assets/app_icon.icns
+*.app
+*.dmg
+*.zip
+
+# macOS junk
+.DS_Store
+._.DS_Store
+*.tmp
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+
+# Virtualenv
+.venv/
+venv/
+
+# Large working data (e57 captures are huge)
+*.e57
+points/

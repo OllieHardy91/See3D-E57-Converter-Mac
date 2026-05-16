@@ -1,0 +1,96 @@
+name: Build macOS .app
+
+on:
+  push:
+    tags:
+      - "v*"
+    branches:
+      - master
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # arm64 build (Apple Silicon) - macos-14+
+  build-arm64:
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Generate .icns icon
+        run: |
+          ICON_PNG="assets/favicon-dark-512.png"
+          ICONSET="build/See3D.iconset"
+          mkdir -p "$ICONSET"
+          sips -z 16   16   "$ICON_PNG" --out "$ICONSET/icon_16x16.png"
+          sips -z 32   32   "$ICON_PNG" --out "$ICONSET/icon_16x16@2x.png"
+          sips -z 32   32   "$ICON_PNG" --out "$ICONSET/icon_32x32.png"
+          sips -z 64   64   "$ICON_PNG" --out "$ICONSET/icon_32x32@2x.png"
+          sips -z 128  128  "$ICON_PNG" --out "$ICONSET/icon_128x128.png"
+          sips -z 256  256  "$ICON_PNG" --out "$ICONSET/icon_128x128@2x.png"
+          sips -z 256  256  "$ICON_PNG" --out "$ICONSET/icon_256x256.png"
+          sips -z 512  512  "$ICON_PNG" --out "$ICONSET/icon_256x256@2x.png"
+          sips -z 512  512  "$ICON_PNG" --out "$ICONSET/icon_512x512.png"
+          sips -z 1024 1024 "$ICON_PNG" --out "$ICONSET/icon_512x512@2x.png"
+          iconutil -c icns "$ICONSET" -o assets/app_icon.icns
+
+      - name: Build .app
+        run: |
+          python -m PyInstaller --windowed --noconfirm \
+            --name "See3D E57 Converter" \
+            --icon assets/app_icon.icns \
+            --osx-bundle-identifier uk.see3d.e57converter \
+            --add-data "assets:assets" \
+            --hidden-import numpy \
+            --hidden-import scipy.spatial.transform._rotation_groups \
+            --hidden-import cv2 \
+            --hidden-import pye57 \
+            --hidden-import tqdm.auto \
+            --hidden-import PIL.Image \
+            --hidden-import customtkinter \
+            --hidden-import tkinterdnd2 \
+            --collect-data customtkinter \
+            --collect-data tkinterdnd2 \
+            --collect-data cv2 \
+            --collect-binaries cv2 \
+            --collect-binaries pye57 \
+            --exclude-module torch \
+            --exclude-module tensorflow \
+            --exclude-module matplotlib \
+            --exclude-module IPython \
+            --exclude-module sklearn \
+            --exclude-module pandas \
+            app.py
+
+      - name: Zip the .app bundle
+        working-directory: dist
+        run: |
+          zip -r "See3D-E57-Converter-macOS-arm64.zip" "See3D E57 Converter.app"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: See3D-E57-Converter-macOS-arm64
+          path: dist/See3D-E57-Converter-macOS-arm64.zip
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/See3D-E57-Converter-macOS-arm64.zip
+          fail_on_unmatched_files: true
+          generate_release_notes: true
