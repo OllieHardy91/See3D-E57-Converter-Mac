@@ -22,26 +22,62 @@ ready for **Gaussian Splatting** training in
 
 ## Download
 
-Grab the latest `See3D-E57-Converter-macOS-arm64.zip` from
-[Releases](https://github.com/OllieHardy91/See3D-E57-Converter-Mac/releases),
-unzip, drag **See3D E57 Converter.app** into `~/Applications`.
+Grab the latest `See3D-E57-Converter-macOS-arm64-vX.Y.Z.zip` from
+[Releases](https://github.com/OllieHardy91/See3D-E57-Converter-Mac/releases)
+and unzip it. The zip contains two files:
 
-### First launch (unsigned .app)
+- **See3D E57 Converter.app** — the app itself
+- **First Launch.command** — a one-time helper that unblocks Gatekeeper
 
-The bundle is ad-hoc signed but not notarised, so macOS Gatekeeper will
-refuse to launch it via double-click on first run. Two ways past this:
+### First launch — the simple way
 
-**Easiest** — right-click → **Open** → click **Open** in the warning dialog.
-macOS remembers your choice and subsequent launches work normally.
+Because the app isn't notarised by Apple yet (a paid Apple Developer ID
+is required for that), macOS Gatekeeper will block the first launch. The
+included helper does the bypass for you:
 
-**Or** — strip the quarantine attribute once:
+1. **Right-click `First Launch.command` → Open** (just plain double-click
+   will be blocked too; the right-click route gets you an "Open" button
+   on the warning dialog)
+2. A Terminal window opens, strips the quarantine attribute, and
+   launches See3D E57 Converter
+3. From now on, you can double-click **See3D E57 Converter.app** normally
+
+After this you can drag the `.app` into `/Applications` to install it permanently.
+
+### If the helper won't run (macOS Sequoia 15+)
+
+On macOS 15 Apple removed the right-click → Open shortcut. If you double-
+click `First Launch.command` and the dialog only has a **Move to Trash**
+button (no Open option), do this instead:
+
+1. Open **System Settings → Privacy & Security**
+2. Scroll to the **Security** section near the bottom
+3. You'll see *"First Launch.command was blocked to protect your Mac"* — click **Open Anyway**
+4. Enter your password, then on the next dialog click **Open**
+5. The script runs and the app launches
+
+You only need to do this once.
+
+### Or, the one-line Terminal route
+
+If you prefer Terminal directly, this is equivalent to running the helper:
 
 ```bash
-xattr -dr com.apple.quarantine "/Applications/See3D E57 Converter.app"
+xattr -dr com.apple.quarantine "/path/to/See3D E57 Converter.app"
+open "/path/to/See3D E57 Converter.app"
 ```
 
-A fully signed and notarised build will come once the app stabilises and
-we have an Apple Developer ID signing identity.
+### Why this is needed
+
+Apple requires apps distributed outside the Mac App Store to be signed
+with a paid **Developer ID** ($99/year) and submitted to Apple's
+notarisation service. This build is currently **ad-hoc signed** —
+cryptographically self-consistent but not tied to a registered
+developer. macOS Gatekeeper sees the quarantine attribute on the
+downloaded ZIP and refuses to launch.
+
+A fully Developer-ID-signed and notarised build is on the roadmap. When
+it ships, the first-launch flow above will no longer be needed.
 
 ## What it does
 

@@ -146,11 +146,18 @@ jobs:
             exit 1
           fi
 
-      - name: Zip the .app bundle
+      - name: Stage release files
+        run: |
+          # Copy the Gatekeeper-bypass helper alongside the .app so it
+          # ends up in the zip. Make sure it's executable.
+          cp "First Launch.command" "dist/First Launch.command"
+          chmod +x "dist/First Launch.command"
+
+      - name: Zip release bundle
         working-directory: dist
         run: |
           ZIP_NAME="See3D-E57-Converter-macOS-${{ matrix.arch }}-v${{ steps.ver.outputs.version }}.zip"
-          zip -r "$ZIP_NAME" "See3D E57 Converter.app"
+          zip -r "$ZIP_NAME" "See3D E57 Converter.app" "First Launch.command"
           echo "ZIP_NAME=$ZIP_NAME" >> "$GITHUB_ENV"
 
       - name: Upload artifact
