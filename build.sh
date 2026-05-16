@@ -22,39 +22,53 @@ echo "[2/4] Installing dependencies from requirements.txt..."
 "$PY" -m pip install -r requirements.txt --quiet
 
 echo
-echo "[3/4] Generating .icns icon from assets/Final_Icon.png..."
+echo "[3/4] Generating .icns icon..."
 
 ICONSET_DIR="build/See3D.iconset"
 mkdir -p "$ICONSET_DIR"
 
-# Crop tight to the squircle content before scaling — Final_Icon.png has
-# ~230px transparent padding per side (content fills only ~62% of canvas).
-# Without cropping, the Dock/Finder icon appears small and blurry.
-SRC="$ICONSET_DIR/icon_cropped.png"
-"$PY" -c "
+SVG_SRC="assets/Final_Icon.svg"
+
+# Prefer SVG + ImageMagick: renders each size from vector geometry so edges
+# are mathematically sharp (especially critical at 16/32px Dock sizes).
+# Falls back to sips + PNG crop if magick is not on PATH or SVG is missing.
+if [[ -f "$SVG_SRC" ]] && command -v magick &>/dev/null; then
+  echo "  ICNS: rendering from SVG via ImageMagick (vector-sharp)"
+  render_size() {
+    local size="$1" out="$2"
+    magick -background none "$SVG_SRC" -resize "${size}x${size}" "$out"
+  }
+else
+  echo "  ICNS: falling back to sips + PNG (brew install imagemagick for sharper icons)"
+  # Crop tight to the squircle content - Final_Icon.png has ~230px transparent
+  # padding per side (content fills only ~62% of canvas).
+  SRC_CROPPED="$ICONSET_DIR/icon_cropped.png"
+  "$PY" -c "
 from PIL import Image
 img = Image.open('assets/Final_Icon.png').convert('RGBA')
 bbox = img.getbbox()
 pad = int((bbox[2] - bbox[0]) * 0.04)
-img.crop((max(0,bbox[0]-pad), max(0,bbox[1]-pad), min(img.width,bbox[2]+pad), min(img.height,bbox[3]+pad))).save('$SRC')
+img.crop((max(0,bbox[0]-pad), max(0,bbox[1]-pad), min(img.width,bbox[2]+pad), min(img.height,bbox[3]+pad))).save('${SRC_CROPPED}')
 "
+  render_size() {
+    local size="$1" out="$2"
+    sips -z "$size" "$size" "$SRC_CROPPED" --out "$out" >/dev/null
+  }
+fi
 
-# Final_Icon.png is the agreed app icon — used at every size so the Dock,
-# Finder, Spotlight and Mission Control all show the same designed icon.
-sips -z 16   16   "$SRC" --out "$ICONSET_DIR/icon_16x16.png"      >/dev/null
-sips -z 32   32   "$SRC" --out "$ICONSET_DIR/icon_16x16@2x.png"   >/dev/null
-sips -z 32   32   "$SRC" --out "$ICONSET_DIR/icon_32x32.png"      >/dev/null
-sips -z 64   64   "$SRC" --out "$ICONSET_DIR/icon_32x32@2x.png"   >/dev/null
-sips -z 128  128  "$SRC" --out "$ICONSET_DIR/icon_128x128.png"    >/dev/null
-sips -z 256  256  "$SRC" --out "$ICONSET_DIR/icon_128x128@2x.png" >/dev/null
-sips -z 256  256  "$SRC" --out "$ICONSET_DIR/icon_256x256.png"    >/dev/null
-sips -z 512  512  "$SRC" --out "$ICONSET_DIR/icon_256x256@2x.png" >/dev/null
-sips -z 512  512  "$SRC" --out "$ICONSET_DIR/icon_512x512.png"    >/dev/null
-sips -z 1024 1024 "$SRC" --out "$ICONSET_DIR/icon_512x512@2x.png" >/dev/null
+render_size 16   "$ICONSET_DIR/icon_16x16.png"
+render_size 32   "$ICONSET_DIR/icon_16x16@2x.png"
+render_size 32   "$ICONSET_DIR/icon_32x32.png"
+render_size 64   "$ICONSET_DIR/icon_32x32@2x.png"
+render_size 128  "$ICONSET_DIR/icon_128x128.png"
+render_size 256  "$ICONSET_DIR/icon_128x128@2x.png"
+render_size 256  "$ICONSET_DIR/icon_256x256.png"
+render_size 512  "$ICONSET_DIR/icon_256x256@2x.png"
+render_size 512  "$ICONSET_DIR/icon_512x512.png"
+render_size 1024 "$ICONSET_DIR/icon_512x512@2x.png"
 
 iconutil -c icns "$ICONSET_DIR" -o assets/app_icon.icns
 echo "  -> assets/app_icon.icns"
-
 echo
 echo "[4/4] Building .app with PyInstaller..."
 "$PY" -m PyInstaller --windowed --noconfirm \
