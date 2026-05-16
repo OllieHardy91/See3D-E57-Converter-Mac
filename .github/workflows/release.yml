@@ -50,7 +50,11 @@ jobs:
 
       - name: Generate .icns icon
         run: |
-          ICON_PNG="assets/favicon-dark-512.png"
+          # Regenerate the 1024px source PNG from the SVG-like wordmark so
+          # the icon stays in sync with assets/ - the committed app_icon_source.png
+          # is the same output, but this guarantees CI never ships a stale icon.
+          python scripts/generate_icon_source.py
+          ICON_PNG="assets/app_icon_source.png"
           ICONSET="build/See3D.iconset"
           mkdir -p "$ICONSET"
           sips -z 16   16   "$ICON_PNG" --out "$ICONSET/icon_16x16.png"

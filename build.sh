@@ -22,8 +22,12 @@ echo "[2/4] Installing dependencies from requirements.txt..."
 "$PY" -m pip install -r requirements.txt --quiet
 
 echo
-echo "[3/4] Generating .icns icon from 512px favicon..."
-ICON_PNG="assets/favicon-dark-512.png"
+echo "[3/4] Generating .icns icon from 1024px source..."
+if [ ! -f "assets/app_icon_source.png" ]; then
+  echo "  -> assets/app_icon_source.png missing - regenerating via scripts/generate_icon_source.py"
+  "$PY" scripts/generate_icon_source.py
+fi
+ICON_PNG="assets/app_icon_source.png"
 ICONSET_DIR="build/See3D.iconset"
 mkdir -p "$ICONSET_DIR"
 
