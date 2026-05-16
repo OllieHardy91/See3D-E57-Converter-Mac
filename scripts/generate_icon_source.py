@@ -1,10 +1,12 @@
-"""Generate the app-icon source PNGs used by build.sh / CI to produce the
-.icns (macOS) and .ico (Windows).
+"""Generate the app-icon source PNGs and the multi-size Windows .ico.
 
 Outputs:
 - assets/app_icon_source.png       1024x1024  wordmark variant (128-1024)
 - assets/app_icon_mono_source.png  1024x1024  "3D" monogram variant (16/32/64)
 - assets/favicon-light-512.png     512x512    README preview / Tk window icon
+- assets/app_icon.ico              multi-size: mono 16/32/48, wordmark 64/128/256
+                                   (.icns on macOS is built by sips+iconutil
+                                   from the PNG sources in build.sh / CI)
 
 Design:
 - White background with a very subtle vertical gradient for depth.
@@ -131,6 +133,55 @@ def main() -> None:
     fav = wordmark.resize((512, 512), Image.LANCZOS)
     fav.save(ASSETS / "favicon-light-512.png", "PNG", optimize=True)
     print(f"Wrote favicon-light-512.png  (512x512)")
+
+    # ---- Multi-size Windows .ico ----
+    ico_path = ASSETS / "app_icon.ico"
+    sources = [
+        (16,  monogram),
+        (32,  monogram),
+        (48,  monogram),
+        (64,  wordmark),
+        (128, wordmark),
+        (256, wordmark),
+    ]
+    _write_multi_source_ico(ico_path, sources)
+    print(f"Wrote app_icon.ico  ({len(sources)} sizes)")
+
+
+def _write_multi_source_ico(out_path: Path,
+                            entries: list[tuple[int, Image.Image]]) -> None:
+    """Write a multi-size .ico where each entry can have a different source
+    image. PIL's native ICO save only supports one source resized to many
+    sizes, so we build the container manually with PNG-compressed entries
+    (the modern 'Vista' ICO format)."""
+    import struct
+    from io import BytesIO
+
+    pngs: list[tuple[int, bytes]] = []
+    for size, src in entries:
+        im = src.resize((size, size), Image.LANCZOS).convert("RGBA")
+        buf = BytesIO()
+        im.save(buf, format="PNG", optimize=True)
+        pngs.append((size, buf.getvalue()))
+
+    count = len(pngs)
+    header = struct.pack("<HHH", 0, 1, count)
+
+    offset = 6 + 16 * count
+    dir_entries = b""
+    image_data  = b""
+    for size, png_bytes in pngs:
+        w = 0 if size >= 256 else size
+        h = 0 if size >= 256 else size
+        sz = len(png_bytes)
+        dir_entries += struct.pack(
+            "<BBBBHHII",
+            w, h, 0, 0, 1, 32, sz, offset,
+        )
+        image_data += png_bytes
+        offset += sz
+
+    out_path.write_bytes(header + dir_entries + image_data)
 
 
 if __name__ == "__main__":
