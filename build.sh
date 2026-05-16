@@ -22,27 +22,29 @@ echo "[2/4] Installing dependencies from requirements.txt..."
 "$PY" -m pip install -r requirements.txt --quiet
 
 echo
-echo "[3/4] Generating .icns icon from 1024px source..."
-if [ ! -f "assets/app_icon_source.png" ]; then
-  echo "  -> assets/app_icon_source.png missing - regenerating via scripts/generate_icon_source.py"
+echo "[3/4] Generating .icns icon (monogram at small sizes, wordmark at large)..."
+if [ ! -f "assets/app_icon_source.png" ] || [ ! -f "assets/app_icon_mono_source.png" ]; then
+  echo "  -> source PNGs missing - regenerating via scripts/generate_icon_source.py"
   "$PY" scripts/generate_icon_source.py
 fi
-ICON_PNG="assets/app_icon_source.png"
+
+WORDMARK="assets/app_icon_source.png"        # full 'See3D' wordmark
+MONOGRAM="assets/app_icon_mono_source.png"   # '3D' monogram for small sizes
 ICONSET_DIR="build/See3D.iconset"
 mkdir -p "$ICONSET_DIR"
 
-# Standard .icns size set (most important: 16, 32, 128, 256, 512 plus @2x retina variants)
-sips -z 16   16   "$ICON_PNG" --out "$ICONSET_DIR/icon_16x16.png"      >/dev/null
-sips -z 32   32   "$ICON_PNG" --out "$ICONSET_DIR/icon_16x16@2x.png"   >/dev/null
-sips -z 32   32   "$ICON_PNG" --out "$ICONSET_DIR/icon_32x32.png"      >/dev/null
-sips -z 64   64   "$ICON_PNG" --out "$ICONSET_DIR/icon_32x32@2x.png"   >/dev/null
-sips -z 128  128  "$ICON_PNG" --out "$ICONSET_DIR/icon_128x128.png"    >/dev/null
-sips -z 256  256  "$ICON_PNG" --out "$ICONSET_DIR/icon_128x128@2x.png" >/dev/null
-sips -z 256  256  "$ICON_PNG" --out "$ICONSET_DIR/icon_256x256.png"    >/dev/null
-sips -z 512  512  "$ICON_PNG" --out "$ICONSET_DIR/icon_256x256@2x.png" >/dev/null
-sips -z 512  512  "$ICON_PNG" --out "$ICONSET_DIR/icon_512x512.png"    >/dev/null
-# Source is 512px; @2x of 512 (i.e. 1024) is upsampled - acceptable
-sips -z 1024 1024 "$ICON_PNG" --out "$ICONSET_DIR/icon_512x512@2x.png" >/dev/null
+# Mixed sources: at <=64px the wordmark becomes an illegible blur, so swap in
+# the '3D' monogram. Apple's own pro apps (Ps, Ai, Pr) do the same.
+sips -z 16   16   "$MONOGRAM" --out "$ICONSET_DIR/icon_16x16.png"      >/dev/null
+sips -z 32   32   "$MONOGRAM" --out "$ICONSET_DIR/icon_16x16@2x.png"   >/dev/null
+sips -z 32   32   "$MONOGRAM" --out "$ICONSET_DIR/icon_32x32.png"      >/dev/null
+sips -z 64   64   "$MONOGRAM" --out "$ICONSET_DIR/icon_32x32@2x.png"   >/dev/null
+sips -z 128  128  "$WORDMARK" --out "$ICONSET_DIR/icon_128x128.png"    >/dev/null
+sips -z 256  256  "$WORDMARK" --out "$ICONSET_DIR/icon_128x128@2x.png" >/dev/null
+sips -z 256  256  "$WORDMARK" --out "$ICONSET_DIR/icon_256x256.png"    >/dev/null
+sips -z 512  512  "$WORDMARK" --out "$ICONSET_DIR/icon_256x256@2x.png" >/dev/null
+sips -z 512  512  "$WORDMARK" --out "$ICONSET_DIR/icon_512x512.png"    >/dev/null
+sips -z 1024 1024 "$WORDMARK" --out "$ICONSET_DIR/icon_512x512@2x.png" >/dev/null
 
 iconutil -c icns "$ICONSET_DIR" -o assets/app_icon.icns
 echo "  -> assets/app_icon.icns"
