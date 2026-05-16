@@ -28,8 +28,8 @@ unzip, drag **See3D E57 Converter.app** into `~/Applications`.
 
 ### First launch (unsigned .app)
 
-The bundle is unsigned, so macOS Gatekeeper will refuse to launch it via
-double-click. Two ways to get past this:
+The bundle is ad-hoc signed but not notarised, so macOS Gatekeeper will
+refuse to launch it via double-click on first run. Two ways past this:
 
 **Easiest** — right-click → **Open** → click **Open** in the warning dialog.
 macOS remembers your choice and subsequent launches work normally.
@@ -40,8 +40,8 @@ macOS remembers your choice and subsequent launches work normally.
 xattr -dr com.apple.quarantine "/Applications/See3D E57 Converter.app"
 ```
 
-A signed/notarised build will come once the app stabilises and we have an
-Apple Developer signing identity.
+A fully signed and notarised build will come once the app stabilises and
+we have an Apple Developer ID signing identity.
 
 ## What it does
 
@@ -71,8 +71,9 @@ of three representative scans, so you can sanity-check alignment visually.
 ## System requirements
 
 - **macOS:** 12 Monterey or newer.
-- **Architecture:** Apple Silicon (arm64) **and** Intel (x86_64). The CI
-  builds both — pick the right `.zip` from the Releases page.
+- **Architecture:** Apple Silicon (arm64) — M1/M2/M3/M4. Intel Macs are
+  not yet in the CI matrix because GitHub's free Intel runners are scarce;
+  Intel users can build from source (see below).
 - **RAM:** 8 GB minimum, 16 GB recommended (cubemap workers run in parallel).
 - **Disk:** 5–50 GB free in the output folder, depending on scan count.
 
@@ -90,8 +91,11 @@ python3 app.py                  # run from source
 ./build.sh                      # produce dist/See3D E57 Converter.app
 ```
 
-Tested with Python 3.11 (Homebrew). `build.sh` requires `sips` and
-`iconutil` — both ship with macOS.
+Tested with Python 3.11. **Use Homebrew Python or the official python.org
+installer** — macOS's stock `/usr/bin/python3` has a Tcl/Tk binding with
+known rendering bugs in customtkinter (blurred fonts, broken corner
+radius). `build.sh` also requires `sips` and `iconutil`, both of which
+ship with macOS.
 
 ## Differences from the Windows variant
 

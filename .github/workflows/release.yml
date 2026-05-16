@@ -19,13 +19,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { runner: macos-14, arch: arm64,  python: "3.11", required: true  }
-          - { runner: macos-13, arch: x86_64, python: "3.11", required: false }
+          # Apple Silicon (M1/M2/M3/M4). The only arch in the CI matrix
+          # right now - GitHub's free macos-13 Intel runners are saturated
+          # and unreliable. Intel users build from source (see README).
+          - { runner: macos-14, arch: arm64, python: "3.11" }
 
     runs-on: ${{ matrix.runner }}
-    # macos-13 Intel runners are scarce - allow the x86_64 leg to fail without
-    # taking the whole workflow down. arm64 is the required deliverable.
-    continue-on-error: ${{ matrix.required == false }}
     timeout-minutes: 25
 
     steps:
